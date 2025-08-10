@@ -11,18 +11,20 @@ namespace SheetView
         /// <summary>
         /// If true, only the last column is editable in the grid.
         /// </summary>
-        private const bool LastColOnlyEdit = true;
+        private const bool LastColOnlyEdit = false;
 
         /// <summary>
         /// Shows a modal dialog to edit values in a grid, then returns them as a 2D string array.
         /// </summary>
         /// <param name="elemData">A 2D string array containing the initial data (first row is headers).</param>
-        /// <param name="title">The window title for the dialog.</param>
+        /// <param name="extraText">Extra text for the window title bar.</param>
         /// <returns>A 2D string array with the grid data.</returns>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="elemData"/> is null.</exception>
         /// <exception cref="ArgumentException">Thrown if <paramref name="elemData"/> has less than 2 rows or columns.</exception>
-        internal static string[,] ShowGrid(string[,] elemData, string title)
+        internal static string[,] ShowGrid(string[,] elemData, string extraText)
         {
+            const string appTitle = "Griddle: ";
+
             if (elemData == null)
             {
                 throw new ArgumentNullException(nameof(elemData));
@@ -42,10 +44,12 @@ namespace SheetView
             using (Button btnExit = new Button())
             using (Button btnSave = new Button())
             using (Button btnLoad = new Button())
+            using (Button btnSearch = new Button())
             using (DataGridView grid = new DataGridView())
+            using (TextBox txtSearch = new TextBox())
             {
                 // Set up form
-                form.Text = title;
+                form.Text = appTitle + extraText;
                 form.Icon = SystemIcons.Application;
                 form.FormBorderStyle = FormBorderStyle.Sizable;
                 form.MaximizeBox = false;
@@ -117,6 +121,122 @@ namespace SheetView
                 btnExit.Location = new Point(panel.Width - 220, 10);
                 btnExit.AutoSize = true;
 
+                // --- Search TextBox and Button ---
+                txtSearch.Size = new Size(180, 30);
+                txtSearch.Location = new Point(10, 10);
+                txtSearch.Anchor = AnchorStyles.Left | AnchorStyles.Top;
+                txtSearch.Text = "";
+
+                btnSearch.Text = "Search";
+                btnSearch.Size = new Size(90, 30);
+                btnSearch.Location = new Point(txtSearch.Right + 20, 10);
+                btnSearch.Anchor = AnchorStyles.Left | AnchorStyles.Top;
+                btnSearch.AutoSize = true;
+
+                int lastFoundRow = -1;
+                int lastFoundCol = -1;
+                string lastSearchText = "";
+
+                // Search logic: highlights the first cell containing the search text (case-insensitive)
+                btnSearch.Click += (s, e) =>
+                {
+                    string search = txtSearch.Text;
+                    if (string.IsNullOrEmpty(search))
+                    {
+                        return;
+                    }
+
+                    int startRow = 0, startCol = 0;
+
+                    // If search text is unchanged and a previous match exists, start from next cell
+                    if (search == lastSearchText && lastFoundRow != -1 && lastFoundCol != -1)
+                    {
+                        startRow = lastFoundRow;
+                        startCol = lastFoundCol + 1;
+                        if (startCol >= grid.ColumnCount)
+                        {
+                            startCol = 0;
+                            startRow++;
+                        }
+                        if (startRow >= grid.RowCount)
+                        {
+                            startRow = 0;
+                            startCol = 0;
+                        }
+                    }
+                    else
+                    {
+                        // New search or no previous match: start from beginning
+                        lastFoundRow = -1;
+                        lastFoundCol = -1;
+                        lastSearchText = search;
+                    }
+
+                    bool found = false;
+                    int rowCount = grid.RowCount;
+                    int colCount = grid.ColumnCount;
+
+                    // Search from startRow/startCol to end
+                    for (int r = startRow; r < rowCount; r++)
+                    {
+                        int cStart = (r == startRow) ? startCol : 0;
+                        for (int c = cStart; c < colCount; c++)
+                        {
+                            string cellValue = grid.Rows[r].Cells[c].Value?.ToString() ?? "";
+                            if (cellValue.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                grid.ClearSelection();
+                                grid.Rows[r].Cells[c].Selected = true;
+                                grid.CurrentCell = grid.Rows[r].Cells[c];
+                                lastFoundRow = r;
+                                lastFoundCol = c;
+                                lastSearchText = search;
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found)
+                        {
+                            break;
+                        }
+                    }
+
+                    // If not found, and we wrapped around, search from 0,0 up to original position
+                    if (!found && search == lastSearchText && lastFoundRow != -1 && lastFoundCol != -1)
+                    {
+                        for (int r = 0; r <= lastFoundRow; r++)
+                        {
+                            int cEnd = (r == lastFoundRow) ? lastFoundCol - 1 : colCount - 1;
+                            for (int c = 0; c <= cEnd; c++)
+                            {
+                                string cellValue = grid.Rows[r].Cells[c].Value?.ToString() ?? "";
+                                if (cellValue.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0)
+                                {
+                                    grid.ClearSelection();
+                                    grid.Rows[r].Cells[c].Selected = true;
+                                    grid.CurrentCell = grid.Rows[r].Cells[c];
+                                    lastFoundRow = r;
+                                    lastFoundCol = c;
+                                    lastSearchText = search;
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if (found)
+                            {
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!found)
+                    {
+                        _ = MessageBox.Show(form, $"No match found for \"{search}\".", "Search", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        lastFoundRow = -1;
+                        lastFoundCol = -1;
+                    }
+                };
+
                 // Keep buttons anchored properly when panel resizes
                 panel.Resize += (s, e) =>
                 {
@@ -134,6 +254,7 @@ namespace SheetView
                         ofd.Title = "Load CSV File";
                         if (ofd.ShowDialog(form) == DialogResult.OK)
                         {
+                            string fileName = Path.GetFileName(ofd.FileName);
                             try
                             {
                                 string[,] loaded = ReadCsv(ofd.FileName);
@@ -163,6 +284,7 @@ namespace SheetView
                                     }
 
                                     _ = grid.Rows.Add(rowValues);
+                                    form.Text = appTitle + fileName;
                                 }
                             }
                             catch (Exception ex)
@@ -176,7 +298,8 @@ namespace SheetView
                 // Save button: export data to a CSV file
                 btnSave.Click += (s, e) =>
                 {
-                    WriteCsv(title, grid.Rows.Count, grid.Columns.Count, form, grid);
+                    string newFileName = WriteCsv(grid.Rows.Count, grid.Columns.Count, form, grid);
+                    form.Text = appTitle + newFileName;
                 };
 
                 // Exit button: return a 2D string array
@@ -207,6 +330,8 @@ namespace SheetView
                 };
 
                 // Add controls
+                panel.Controls.Add(txtSearch);
+                panel.Controls.Add(btnSearch);
                 panel.Controls.Add(btnLoad);
                 panel.Controls.Add(btnSave);
                 panel.Controls.Add(btnExit);
@@ -255,8 +380,9 @@ namespace SheetView
         /// <param name="cols">The number of columns to write.</param>
         /// <param name="form">The parent form for the dialog.</param>
         /// <param name="grid">The DataGridView containing the data.</param>
-        private static void WriteCsv(string title, int rows, int cols, Form form, DataGridView grid)
+        private static string WriteCsv(int rows, int cols, Form form, DataGridView grid)
         {
+            string fileName = "";
             try
             {
                 using (SaveFileDialog ofd = new SaveFileDialog())
@@ -266,6 +392,7 @@ namespace SheetView
                     if (ofd.ShowDialog(form) == DialogResult.OK)
                     {
                         string filePath = ofd.FileName;
+                        fileName = Path.GetFileName(filePath);
                         using (StreamWriter writer = new StreamWriter(filePath, false, System.Text.Encoding.UTF8))
                         {
                             // Write all column headers
@@ -298,6 +425,7 @@ namespace SheetView
             {
                 _ = MessageBox.Show(form, $"Failed to save CSV:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+            return fileName;
         }
 
         /// <summary>

@@ -5,49 +5,67 @@ namespace SheetView
 {
     internal static class StartUp
     {
+        private const string windowTitle = "";
         [STAThread]
 
-        private static void Main()
+        private static void Main(string[] args)
         {
-            const string windowTitle = "ExampleValues";
             string[,] initialData;
-            string[,] returnedData;
+            string[,] returnedData = null;
 
-            // ShowGrid is a method that displays a grid with the provided data.
-            // It returns the modified data after user interaction.
-            // This Main method demonstrates its capability.
-            //------------------------------------------------------
-
-            
-            // Initialize with a 2D array of data.
-            initialData = new string[,]
+            if (args.Length == 0)
             {
-            { "Name", "Value1", "Value2" },
-            { "Aaron", "30", "100" },
-            { "Betty", "40", "200" },
-            { "Clive", "50", "300" },
-            };
-            returnedData = ShowGrid(initialData, windowTitle);
-            
+                // No CSV specified so initialize with a 2D array of dummy data.
 
-            //------------------------------------------------------
-            /*
-            // Initialize from a CSV file.
-            initialData = ReadCsv("C:\\Temp\\SomeValues.csv");
-            returnedData = ShowGrid(initialData, windowTitle);
-            */
-            //------------------------------------------------------
-
-            // Print values to Console, to show grid data was returned.
-            Console.WriteLine("Grid values:");
-            for (int i = 0; i < returnedData.GetLength(0); i++)
-            {
-                for (int j = 0; j < returnedData.GetLength(1); j++)
+                initialData = new string[,]
                 {
-                    Console.Write(returnedData[i, j] + "\t");
-                }
-                Console.WriteLine();
+            { "Heading1", "Heading2", "Heading 3" },
+            { "", "", "" },
+            { "", "", "" },
+            { "", "", "" },
+                };
+                // View/ edit the data in a grid.
+                returnedData = ShowGrid(initialData, windowTitle);
             }
+            else
+            {
+                Console.WriteLine("Command-line arguments:");
+
+                if (args.Length > 0)
+                {
+                    string filePath = args[0];
+                    string fileName = System.IO.Path.GetFileName(filePath);
+                    // Initialize from a CSV file.
+                    initialData = ReadCsv(filePath);
+                    // View/ edit the data in a grid.
+                    returnedData = ShowGrid(initialData, fileName);
+                }
+            }
+
+            // Process returned data as needed.
+
+
+
+            /////////////////////////////////////////////////////////////////
+            // Demo: Print values to Console, to show grid data was returned.
+            if (returnedData == null)
+            {
+                Console.WriteLine("No data returned from ShowGrid.");
+                return;
+            }
+            else
+            {
+                Console.WriteLine("Grid values:");
+                for (int i = 0; i < returnedData.GetLength(0); i++)
+                {
+                    for (int j = 0; j < returnedData.GetLength(1); j++)
+                    {
+                        Console.Write(returnedData[i, j] + "\t");
+                    }
+                    Console.WriteLine();
+                }
+            }
+            /////////////////////////////////////////////////////////////////
 
         }
     }
