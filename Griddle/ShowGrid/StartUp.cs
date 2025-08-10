@@ -18,7 +18,7 @@ namespace SheetView
             // This Main method demonstrates its capability.
             //------------------------------------------------------
 
-            /*
+            
             // Initialize with a 2D array of data.
             initialData = new string[,]
             {
@@ -28,14 +28,14 @@ namespace SheetView
             { "Clive", "50", "300" },
             };
             returnedData = ShowGrid(initialData, windowTitle);
-            */
+            
 
             //------------------------------------------------------
-
+            /*
             // Initialize from a CSV file.
             initialData = ReadCsv("C:\\Temp\\SomeValues.csv");
             returnedData = ShowGrid(initialData, windowTitle);
-
+            */
             //------------------------------------------------------
 
             // Print values to Console, to show grid data was returned.
