@@ -16,7 +16,7 @@ namespace SheetView
         /// <summary>
         /// Shows a modal dialog to edit values in a grid, then returns them as a 2D string array.
         /// </summary>
-        /// <param name="elemData">A 2D string array containing the initial data (first row is headers).</param>
+        /// <param name="elemData">A 2D string array [row, column] containing the initial data (first row is headers).</param>
         /// <param name="extraText">Extra text for the window title bar.</param>
         /// <returns>A 2D string array with the grid data.</returns>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="elemData"/> is null.</exception>
@@ -24,6 +24,8 @@ namespace SheetView
         internal static string[,] ShowGrid(string[,] elemData, string extraText)
         {
             const string appTitle = "Griddle: ";
+            const int headingCol = 0;
+            const int headingRow = 0;
 
             if (elemData == null)
             {
@@ -35,6 +37,17 @@ namespace SheetView
             if (rows < 2 || numCols < 2)
             {
                 throw new ArgumentException("Data must have at least 2 rows (header + data) and 2 columns.", nameof(elemData));
+            }
+
+            // Find the last column that contains data in row 1 (headers).
+            int lastColWithData = numCols - 1;
+            for (int c = numCols - 1; c >= headingCol; c--)
+            {
+                if (elemData[1, c] != null && !string.IsNullOrWhiteSpace(elemData[1, c]))
+                {
+                    lastColWithData = c;
+                    break;
+                }
             }
 
             string[,] result = new string[0, 0];
@@ -52,8 +65,8 @@ namespace SheetView
                 form.Text = appTitle + extraText;
                 form.Icon = SystemIcons.Application;
                 form.FormBorderStyle = FormBorderStyle.Sizable;
-                form.MaximizeBox = false;
-                form.MinimizeBox = false;
+                form.MaximizeBox = true;
+                form.MinimizeBox = false; // Modal, so do not want it hidden
                 form.ShowInTaskbar = false;
                 form.StartPosition = FormStartPosition.CenterScreen;
                 form.Size = new Size(800, 500);
@@ -76,31 +89,43 @@ namespace SheetView
                 grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
                 grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
 
-                // Set up columns using first row as headers
                 grid.ColumnCount = numCols;
-                for (int c = 0; c < numCols; c++)
+                for (int c = headingCol; c < numCols; c++)
                 {
                     DataGridViewColumn dataCol = grid.Columns[c];
-                    string header = elemData[0, c] ?? "";
-                    dataCol.Name = header;
-                    dataCol.HeaderText = header;
-                    if (LastColOnlyEdit)
-                    {
-                        SetColumnAccess(c, numCols - 1, dataCol);
-                    }
+                    string rowHeader = elemData[headingRow, c] ?? "";
+                    dataCol.Name = rowHeader;
+                    dataCol.HeaderText = rowHeader;
+
+                    // Set alignment of cell contents                  
+
+
+                    dataCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    
+
+                    // Make only the last data column writable.
+                    //grid.Columns[c].ReadOnly = c != lastColWithData;
                 }
 
-                // Populate rows below header
-                for (int r = 1; r < rows; r++)
+                // Populate rows below heading row.
+                for (int r = headingRow + 1; r < rows; r++)
                 {
                     object[] rowValues = new object[numCols];
                     for (int c = 0; c < numCols; c++)
                     {
                         rowValues[c] = elemData[r, c];
                     }
-
                     _ = grid.Rows.Add(rowValues);
                 }
+
+                // Set up header column. Align data to left, fit column width to data. /*
+                if (grid.Columns.Count > headingCol)
+                {
+                    grid.Columns[headingCol].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+                    grid.Columns[headingCol].DefaultCellStyle.BackColor = Color.FromArgb(0xF7, 0xF7, 0xF7);
+                    grid.AutoResizeColumn(headingCol, DataGridViewAutoSizeColumnMode.AllCells);
+                    grid.Columns[headingCol].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+                }*/
 
                 // Buttons
                 btnLoad.Text = "Load";
@@ -270,10 +295,10 @@ namespace SheetView
                                     string header = loaded[0, c] ?? "";
                                     col.Name = header;
                                     col.HeaderText = header;
-                                    if (LastColOnlyEdit)
-                                    {
-                                        SetColumnAccess(c, loadedCols - 1, col);
-                                    }
+                               
+                                
+                                  
+                                  
                                 }
                                 for (int r = 1; r < loadedRows; r++)
                                 {
@@ -349,7 +374,7 @@ namespace SheetView
                     }
                     else if (e.KeyCode == Keys.Enter && !grid.IsCurrentCellInEditMode)
                     {
-                        btnExit.PerformClick();
+                        btnSearch.PerformClick();
                         e.Handled = true;
                     }
                 };
@@ -375,7 +400,7 @@ namespace SheetView
         /// <summary>
         /// Writes the contents of a DataGridView to a CSV file using a SaveFileDialog.
         /// </summary>
-        /// <param name="title">The title for the SaveFileDialog (not used in file naming).</param>
+        
         /// <param name="rows">The number of rows to write.</param>
         /// <param name="cols">The number of columns to write.</param>
         /// <param name="form">The parent form for the dialog.</param>
