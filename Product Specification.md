@@ -30,7 +30,7 @@ Developers embedding a quick grid editor in internal tools or utilities.
 
 ### Scenarios:
 
-Displaying computed data with a single editable “notes” or “override” column.
+Displaying and editing data 
 
 Importing an external CSV, making small edits, saving back to CSV.
 
@@ -66,11 +66,11 @@ The first row of the input array shall be used as column headers and shall not b
 
 When edit restriction is enabled, the system shall only allow editing in a single specified column; all others shall be read-only.
 
-A default mode shall restrict editing to the last column when enabled.
+A restriced edit mode shall prevent editing on all by the last column when enabled.
 
 **FR‑05**: Column alignment
 
-All columns shall display cell contents right-aligned within the grid.
+All columns shall display cell contents right-aligned within the grid, except the header column which shall be left-aligned.
 
 **FR‑06**: Exit
 
@@ -126,15 +126,9 @@ Key UI element: DataGridView for rendering and editing.
 
 **API surface**
 
-        /// Shows a modal dialog to edit values in a grid, then returns them as a 2D string array.
-        /// elemData: 2D string array; first row is headers.
-        /// title: dialog window title.
-        /// Throws: ArgumentNullException, ArgumentException
-        internal static string[,] ShowGrid(string[,] elemData, string title);
+        internal static string[,] ShowGrid(string[,] elemData, string title)
 
-        /// Reads a CSV file into a 2D string array; comma delimiter; no quoted fields.
-        /// Throws: FileNotFoundException
-        internal static string[,] ReadCsv(string filePath);
+        internal static string[,] GetDataFromCSV(string filePath)
 
 
 ### Data model:
@@ -151,7 +145,7 @@ Title: provided by caller.
 
 Body: DataGridView fills the client area.
 
-Footer: Buttons — Load, Save, Exit
+Footer: Buttons — Search, Load, Save, Exit
 
 DataGridView settings
 
@@ -164,8 +158,6 @@ DefaultCellStyle.Alignment = MiddleRight for all columns.
 Selection mode: CellSelect.
 
 Editing: In-place, commit on cell leave or OK.
-
-Prevent adding/removing rows by the user unless explicitly enabled.
 
 Editing restriction logic
 
@@ -203,7 +195,7 @@ Populate rows from remaining elemData.
 
 Show dialog modally.
 
-WriteCsv flow
+**SaveCsv flow**
 
 Open SaveFileDialog (set title).
 
@@ -211,7 +203,7 @@ If user selects a path: iterate rows × cols and write comma-separated values; n
 
 Do not quote or escape values.
 
-ReadCsv flow
+**GetDataFromCSV flow**
 
 Validate file exists.
 
@@ -306,5 +298,4 @@ AT‑10
 FR‑05
 Inspect cell style
 All cells displayed right-aligned
-
 
