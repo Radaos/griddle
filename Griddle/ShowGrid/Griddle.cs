@@ -11,6 +11,7 @@ namespace SheetView
         private const string appTitle = "Griddle: ";
         private const bool LastColOnlyEditable = false;
         private const int headingCol = -1;   // Format this column as a heading or set to -1 to disable formatting.
+        private const int headingRow = 0;
         private static int lastFoundRow = -1;
         private static int lastFoundCol = -1;
         private static string lastSearchText = "";
@@ -25,7 +26,6 @@ namespace SheetView
         /// <exception cref="ArgumentException">Thrown if <paramref name="elemData"/> has less than 2 rows or columns.</exception>
         internal static string[,] ShowGrid(string[,] elemData, string dataTitle)
         {
-            const string appTitle = "Griddle: ";
 
             if (elemData == null)
             {
@@ -39,9 +39,9 @@ namespace SheetView
                 throw new ArgumentException("Data must have at least 2 rows (header + data) and 2 columns.", nameof(elemData));
             }
 
-            // Find the last column that contains data in row 1 (headers).
+            // Find the last column that contains data in row 1
             int lastColWithData = numCols - 1;
-            for (int c = numCols - 1; c >= headingCol; c--)
+            for (int c = numCols - 1; c >= 0; c--)
             {
                 if (elemData[1, c] != null && !string.IsNullOrWhiteSpace(elemData[1, c]))
                 {
@@ -89,7 +89,7 @@ namespace SheetView
                 grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
                 grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
 
-                // Set up columns using first row as headers
+                // Set up columns
                 grid.ColumnCount = numCols;
                 for (int c = 0; c < numCols; c++)
                 {
@@ -97,14 +97,11 @@ namespace SheetView
                     string header = elemData[0, c] ?? "";
                     dataCol.Name = header;
                     dataCol.HeaderText = header;
-                    if (LastColOnlyEdit)
-                    {
-                        SetColumnAccess(c, numCols - 1, dataCol);
-                    }
                 }
+                FormatCols(elemData, numCols, grid);
 
                 // Populate rows below header
-                for (int r = 1; r < rows; r++)
+                for (int r = headingRow+1; r < rows; r++)
                 {
                     object[] rowValues = new object[numCols];
                     for (int c = 0; c < numCols; c++)
@@ -114,24 +111,31 @@ namespace SheetView
                     _ = grid.Rows.Add(rowValues);
                 }
 
-                // Buttons
+                // Format search box and buttons
+                txtSearch.Text = "";
+                txtSearch.Anchor = AnchorStyles.Left | AnchorStyles.Top;
+                txtSearch.Size = new Size(200, 30);
+                txtSearch.Location = new Point(10, 10);
+
+                btnSearch.Text = "Search";
+                btnSearch.Anchor = AnchorStyles.Left | AnchorStyles.Top;
+                btnSearch.Size = new Size(100, 30);
+                btnSearch.Location = new Point(txtSearch.Right + 10, txtSearch.Top);
+
                 btnLoad.Text = "Load";
                 btnLoad.Anchor = AnchorStyles.Right | AnchorStyles.Top;
                 btnLoad.Size = new Size(100, 30);
                 btnLoad.Location = new Point(panel.Width - 440, 10);
-                btnLoad.AutoSize = true;
 
                 btnSave.Text = "Save";
                 btnSave.Anchor = AnchorStyles.Right | AnchorStyles.Top;
                 btnSave.Size = new Size(100, 30);
                 btnSave.Location = new Point(panel.Width - 330, 10);
-                btnSave.AutoSize = true;
 
                 btnExit.Text = "Exit";
                 btnExit.Anchor = AnchorStyles.Right | AnchorStyles.Top;
                 btnExit.Size = new Size(100, 30);
                 btnExit.Location = new Point(panel.Width - 220, 10);
-                btnExit.AutoSize = true;
 
                 // Keep buttons anchored properly when panel resizes
                 panel.Resize += (s, e) =>
@@ -358,12 +362,9 @@ namespace SheetView
                                     string header = loaded[0, c] ?? "";
                                     col.Name = header;
                                     col.HeaderText = header;
-                                    if (LastColOnlyEdit)
-                                    {
-                                        SetColumnAccess(c, loadedCols - 1, col);
-                                    }
                                 }
-                                for (int r = 1; r < loadedRows; r++)
+
+                                for (int r = headingRow+1; r < loadedRows; r++)
                                 {
                                     object[] rowValues = new object[loadedCols];
                                     for (int c = 0; c < loadedCols; c++)
@@ -381,84 +382,7 @@ namespace SheetView
                             }
                         }
                     }
-                };
-
-                // Save button: export data to a CSV file
-                btnSave.Click += (s, e) =>
-                {
-                    string newFileName = WriteCsv(grid.Rows.Count, grid.Columns.Count, form, grid);
-                    form.Text = appTitle + newFileName;
-                };
-
-                // Exit button: return a 2D string array
-                btnExit.Click += (s, e) =>
-                {
-                    int rowCount = grid.Rows.Count;
-                    int colCount = grid.Columns.Count;
-                    string[,] allData = new string[rowCount + 1, colCount]; // +1 for header
-
-                    // Copy headers
-                    for (int c = 0; c < colCount; c++)
-                    {
-                        allData[0, c] = grid.Columns[c].HeaderText ?? "";
-                    }
-
-                    // Copy all data below headers
-                    for (int r = 0; r < rowCount; r++)
-                    {
-                        for (int c = 0; c < colCount; c++)
-                        {
-                            allData[r + 1, c] = grid.Rows[r].Cells[c].Value?.ToString() ?? "";
-                        }
-                    }
-
-                    result = allData;
-                    form.DialogResult = DialogResult.OK;
-                    form.Close();
-                };
-
-                // Add controls
-                panel.Controls.Add(txtSearch);
-                panel.Controls.Add(btnSearch);
-                panel.Controls.Add(btnLoad);
-                panel.Controls.Add(btnSave);
-                panel.Controls.Add(btnExit);
-                form.Controls.Add(grid);
-                form.Controls.Add(panel);
-
-                // Keyboard shortcuts
-                form.KeyPreview = true;
-                form.KeyDown += (s, e) =>
-                {
-                    if (e.KeyCode == Keys.Escape)
-                    {
-                        btnExit.PerformClick();
-                        e.Handled = true;
-                    }
-                    else if (e.KeyCode == Keys.Enter && !grid.IsCurrentCellInEditMode)
-                    {
-                        btnExit.PerformClick();
-                        e.Handled = true;
-                    }
-                };
-
-                _ = form.ShowDialog();
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// Restricts editing in a DataGridView to only the specified column.
-        /// </summary>
-        /// <param name="c">The current column index.</param>
-        /// <param name="coltoedit">The column index to allow editing.</param>
-        /// <param name="col">The DataGridViewColumn to set properties on.</param>
-        private static void SetColumnAccess(int c, int coltoedit, DataGridViewColumn col)
-        {
-            col.ReadOnly = c != coltoedit;
-            col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-        }
+                }
 
         /// <summary>
         /// Writes the contents of a DataGridView to a CSV file
@@ -556,7 +480,6 @@ namespace SheetView
             }
             return result;
         }
-
         private static void FormatCols(string[,] elemData, int numCols, DataGridView grid)
         {
             // Format the columns as required
