@@ -8,24 +8,24 @@ namespace SheetView
 {
     internal static class Griddle
     {
-        private const string appTitle = "Griddle: ";
-        private const bool LastColOnlyEditable = false;
-        private const int headingCol = -1;   // Format this column as a heading or set to -1 to disable formatting.
-        private static int lastFoundRow = -1;
-        private static int lastFoundCol = -1;
-        private static string lastSearchText = "";
+        /// <summary>
+ 
+    
+  
 
         /// <summary>
         /// Shows a modal dialog to edit values in a grid, then returns them as a 2D string array.
         /// </summary>
-        /// <param name="elemData">A 2D string array containing the initial data (first row is headers).</param>
+        /// <param name="elemData">A 2D string array [row, column] containing the initial data (first row is headers).</param>
         /// <param name="extraText">Extra text for the window title bar.</param>
         /// <returns>A 2D string array with the grid data.</returns>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="elemData"/> is null.</exception>
         /// <exception cref="ArgumentException">Thrown if <paramref name="elemData"/> has less than 2 rows or columns.</exception>
-        internal static string[,] ShowGrid(string[,] elemData, string dataTitle)
+        internal static string[,] ShowGrid(string[,] elemData, string extraText)
         {
             const string appTitle = "Griddle: ";
+            const int headingCol = 0;
+            const int headingRow = 0;
 
             if (elemData == null)
             {
@@ -43,7 +43,7 @@ namespace SheetView
             int lastColWithData = numCols - 1;
             for (int c = numCols - 1; c >= headingCol; c--)
             {
-                if (elemData[1, c] != null && !string.IsNullOrWhiteSpace(elemData[1, c]))
+                if (!string.IsNullOrWhiteSpace(elemData[1, c]))
                 {
                     lastColWithData = c;
                     break;
@@ -62,11 +62,11 @@ namespace SheetView
             using (TextBox txtSearch = new TextBox())
             {
                 // Set up form
-                form.Text = appTitle + dataTitle;
+                form.Text = appTitle + extraText;
                 form.Icon = SystemIcons.Application;
                 form.FormBorderStyle = FormBorderStyle.Sizable;
-                form.MaximizeBox = false;
-                form.MinimizeBox = false;
+                form.MaximizeBox = true;
+                form.MinimizeBox = false; // Modal, so do not want it hidden
                 form.ShowInTaskbar = false;
                 form.StartPosition = FormStartPosition.CenterScreen;
                 form.Size = new Size(800, 500);
@@ -89,30 +89,44 @@ namespace SheetView
                 grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
                 grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
 
-                // Set up columns using first row as headers
                 grid.ColumnCount = numCols;
-                for (int c = 0; c < numCols; c++)
+                for (int c = headingCol; c < numCols; c++)
                 {
                     DataGridViewColumn dataCol = grid.Columns[c];
-                    string header = elemData[0, c] ?? "";
-                    dataCol.Name = header;
-                    dataCol.HeaderText = header;
-                    if (LastColOnlyEdit)
-                    {
-                        SetColumnAccess(c, numCols - 1, dataCol);
-                    }
+                    string rowHeader = elemData[headingRow, c] ?? "";
+                    dataCol.Name = rowHeader;
+                    dataCol.HeaderText = rowHeader;
+
+                    // Set alignment of cell contents                  
+
+
+                    dataCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    
+
+                    // Make only the last data column writable.
+                    //grid.Columns[c].ReadOnly = c != lastColWithData;
                 }
 
-                // Populate rows below header
-                for (int r = 1; r < rows; r++)
+                // Populate rows below heading row.
+                object[] rowValues = new object[numCols];
+                for (int r = headingRow + 1; r < rows; r++)
                 {
-                    object[] rowValues = new object[numCols];
                     for (int c = 0; c < numCols; c++)
                     {
                         rowValues[c] = elemData[r, c];
                     }
-                    _ = grid.Rows.Add(rowValues);
+
+                    grid.Rows.Add((object[])rowValues.Clone());
                 }
+
+                // Set up header column. Align data to left, fit column width to data. /*
+                if (grid.Columns.Count > headingCol)
+                {
+                    grid.Columns[headingCol].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+                    grid.Columns[headingCol].DefaultCellStyle.BackColor = Color.FromArgb(0xF7, 0xF7, 0xF7);
+                    grid.AutoResizeColumn(headingCol, DataGridViewAutoSizeColumnMode.AllCells);
+                    grid.Columns[headingCol].AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
+                }*/
 
                 // Buttons
                 btnLoad.Text = "Load";
@@ -133,6 +147,122 @@ namespace SheetView
                 btnExit.Location = new Point(panel.Width - 220, 10);
                 btnExit.AutoSize = true;
 
+                // --- Search TextBox and Button ---
+                txtSearch.Size = new Size(180, 30);
+                txtSearch.Location = new Point(10, 10);
+                txtSearch.Anchor = AnchorStyles.Left | AnchorStyles.Top;
+                txtSearch.Text = "";
+
+                btnSearch.Text = "Search";
+                btnSearch.Size = new Size(90, 30);
+                btnSearch.Location = new Point(txtSearch.Right + 20, 10);
+                btnSearch.Anchor = AnchorStyles.Left | AnchorStyles.Top;
+                btnSearch.AutoSize = true;
+
+                int lastFoundRow = -1;
+                int lastFoundCol = -1;
+                string lastSearchText = "";
+
+                // Search logic: highlights the first cell containing the search text (case-insensitive)
+                btnSearch.Click += (s, e) =>
+                {
+                    string search = txtSearch.Text;
+                    if (string.IsNullOrEmpty(search))
+                    {
+                        return;
+                    }
+
+                    int startRow = 0, startCol = 0;
+
+                    // If search text is unchanged and a previous match exists, start from next cell
+                    if (search == lastSearchText && lastFoundRow != -1 && lastFoundCol != -1)
+                    {
+                        startRow = lastFoundRow;
+                        startCol = lastFoundCol + 1;
+                        if (startCol >= grid.ColumnCount)
+                        {
+                            startCol = 0;
+                            startRow++;
+                        }
+                        if (startRow >= grid.RowCount)
+                        {
+                            startRow = 0;
+                            startCol = 0;
+                        }
+                    }
+                    else
+                    {
+                        // New search or no previous match: start from beginning
+                        lastFoundRow = -1;
+                        lastFoundCol = -1;
+                        lastSearchText = search;
+                    }
+
+                    bool found = false;
+                    int rowCount = grid.RowCount;
+                    int colCount = grid.ColumnCount;
+
+                    // Search from startRow/startCol to end
+                    for (int r = startRow; r < rowCount; r++)
+                    {
+                        int cStart = (r == startRow) ? startCol : 0;
+                        for (int c = cStart; c < colCount; c++)
+                        {
+                            string cellValue = grid.Rows[r].Cells[c].Value?.ToString() ?? "";
+                            if (cellValue.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0)
+                            {
+                                grid.ClearSelection();
+                                grid.Rows[r].Cells[c].Selected = true;
+                                grid.CurrentCell = grid.Rows[r].Cells[c];
+                                lastFoundRow = r;
+                                lastFoundCol = c;
+                                lastSearchText = search;
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found)
+                        {
+                            break;
+                        }
+                    }
+
+                    // If not found, and we wrapped around, search from 0,0 up to original position
+                    if (!found && search == lastSearchText && lastFoundRow != -1 && lastFoundCol != -1)
+                    {
+                        for (int r = 0; r <= lastFoundRow; r++)
+                        {
+                            int cEnd = (r == lastFoundRow) ? lastFoundCol - 1 : colCount - 1;
+                            for (int c = 0; c <= cEnd; c++)
+                            {
+                                string cellValue = grid.Rows[r].Cells[c].Value?.ToString() ?? "";
+                                if (cellValue.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0)
+                                {
+                                    grid.ClearSelection();
+                                    grid.Rows[r].Cells[c].Selected = true;
+                                    grid.CurrentCell = grid.Rows[r].Cells[c];
+                                    lastFoundRow = r;
+                                    lastFoundCol = c;
+                                    lastSearchText = search;
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if (found)
+                            {
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!found)
+                    {
+                        MessageBox.Show(form, $"No match found for \"{search}\".", "Search", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        lastFoundRow = -1;
+                        lastFoundCol = -1;
+                    }
+                };
+
                 // Keep buttons anchored properly when panel resizes
                 panel.Resize += (s, e) =>
                 {
@@ -141,213 +271,21 @@ namespace SheetView
                     btnLoad.Left = btnSave.Left - btnLoad.Width - 10;
                 };
 
-                // Search button: search for text in grid, highlight cell if found
-                btnSearch.Click += (s, e) =>
-                {
-                    DataSearch(form, grid, txtSearch, ref lastFoundRow, ref lastFoundCol, ref lastSearchText);
-                };
-
                 // Load button: prompt for CSV, load, clear and repopulate grid
                 btnLoad.Click += (s, e) =>
                 {
-                    LoadCsv(appTitle, form, grid);
-                };
-
-                // Save button: save data to a CSV file
-                btnSave.Click += (s, e) =>
-                {
-                    string newFileName = SaveCsv(grid.Rows.Count, grid.Columns.Count, form, grid);
-                    form.Text = appTitle + newFileName;
-                };
-
-                // Exit button: return the data in a 2D string array
-                btnExit.Click += (s, e) =>
-                {
-                    int rowCount = grid.Rows.Count;
-                    int colCount = grid.Columns.Count;
-                    string[,] allData = new string[rowCount + 1, colCount]; // +1 accounts for header
-
-                    // Copy headers
-                    for (int c = 0; c < colCount; c++)
+                    using (OpenFileDialog ofd = new OpenFileDialog())
                     {
-                        allData[0, c] = grid.Columns[c].HeaderText ?? "";
-                    }
-
-                    // Copy all data below headers
-                    for (int r = 0; r < rowCount; r++)
-                    {
-                        for (int c = 0; c < colCount; c++)
+                        ofd.Filter = "CSV Files (*.csv)|*.csv|All Files (*.*)|*.*";
+                        ofd.Title = "Load CSV File";
+                        if (ofd.ShowDialog(form) == DialogResult.OK)
                         {
-                            allData[r + 1, c] = grid.Rows[r].Cells[c].Value?.ToString() ?? "";
-                        }
-                    }
-
-                    result = allData;
-                    form.DialogResult = DialogResult.OK;
-                    form.Close();
-                };
-
-                // Add the controls
-                panel.Controls.Add(txtSearch);
-                panel.Controls.Add(btnSearch);
-                panel.Controls.Add(btnLoad);
-                panel.Controls.Add(btnSave);
-                panel.Controls.Add(btnExit);
-                form.Controls.Add(grid);
-                form.Controls.Add(panel);
-
-                // Define keyboard shortcuts
-                form.KeyPreview = true;
-                form.KeyDown += (s, e) =>
-                {
-                    if (e.KeyCode == Keys.Escape)
-                    {
-                        btnExit.PerformClick();
-                        e.Handled = true;
-                    }
-                    else if (e.KeyCode == Keys.Enter && !grid.IsCurrentCellInEditMode)
-                    {
-                        btnSearch.PerformClick();
-                        e.Handled = true;
-                    }
-                };
-
-                _ = form.ShowDialog();
-            }
-
-            return result;
-        }
-
-        private static void DataSearch(Form form, DataGridView grid, TextBox txtSearch, ref int lastFoundRow, ref int lastFoundCol, ref string lastSearchText)
-        {
-            // Capture the state, then update the ref parameters
-            int foundRow = lastFoundRow;
-            int foundCol = lastFoundCol;
-            string searchText = lastSearchText;
-
-            string search = txtSearch.Text;
-            if (string.IsNullOrEmpty(search))
-            {
-                return;
-            }
-
-            int startRow = 0, startCol = 0;
-
-            // If search text is unchanged and a previous match exists, start from next cell
-            if (search == searchText && foundRow != -1 && foundCol != -1)
-            {
-                startRow = foundRow;
-                startCol = foundCol + 1;
-                if (startCol >= grid.ColumnCount)
-                {
-                    startCol = 0;
-                    startRow++;
-                }
-                if (startRow >= grid.RowCount)
-                {
-                    startRow = 0;
-                    startCol = 0;
-                }
-            }
-            else
-            {
-                // New search or no previous match: start from beginning
-                foundRow = -1;
-                foundCol = -1;
-                searchText = search;
-            }
-
-            bool found = false;
-            int rowCount = grid.RowCount;
-            int colCount = grid.ColumnCount;
-
-            // Search from startRow/startCol to end
-            for (int r = startRow; r < rowCount; r++)
-            {
-                int cStart = (r == startRow) ? startCol : 0;
-                for (int c = cStart; c < colCount; c++)
-                {
-                    string cellValue = grid.Rows[r].Cells[c].Value?.ToString() ?? "";
-                    if (cellValue.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        grid.ClearSelection();
-                        grid.Rows[r].Cells[c].Selected = true;
-                        grid.CurrentCell = grid.Rows[r].Cells[c];
-                        foundRow = r;
-                        foundCol = c;
-                        searchText = search;
-                        found = true;
-                        break;
-                    }
-                }
-                if (found)
-                {
-                    break;
-                }
-            }
-
-            // If not found and wraparound occurred, search from 0,0 up to original position
-            if (!found && search == searchText && foundRow != -1 && foundCol != -1)
-            {
-                for (int r = 0; r <= foundRow; r++)
-                {
-                    int cEnd = (r == foundRow) ? foundCol - 1 : colCount - 1;
-                    for (int c = 0; c <= cEnd; c++)
-                    {
-                        string cellValue = grid.Rows[r].Cells[c].Value?.ToString() ?? "";
-                        if (cellValue.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0)
-                        {
-                            grid.ClearSelection();
-                            grid.Rows[r].Cells[c].Selected = true;
-                            grid.CurrentCell = grid.Rows[r].Cells[c];
-                            foundRow = r;
-                            foundCol = c;
-                            searchText = search;
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (found)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            if (!found)
-            {
-                _ = MessageBox.Show(form, $"No match found for \"{search}\".", "Search", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                foundRow = -1;
-                foundCol = -1;
-            }
-
-            // Update the ref parameters
-            lastFoundRow = foundRow;
-            lastFoundCol = foundCol;
-            lastSearchText = searchText;
-        }
-
-        /// <summary>
-        /// Loads a CSV file and populates DataGridView with the contents.
-        /// </summary>
-        /// <param name="appTitle"></param>
-        /// <param name="form"></param>
-        /// <param name="btnLoad"></param>
-        /// <param name="grid"></param>
-        private static void LoadCsv(string appTitle, Form form, DataGridView grid)
-        {
-            using (OpenFileDialog ofd = new OpenFileDialog())
-            {
-                ofd.Filter = "CSV Files (*.csv)|*.csv|All Files (*.*)|*.*";
-                ofd.Title = "Load CSV File";
-                if (ofd.ShowDialog(form) == DialogResult.OK)
-                {
-                    string fileName = Path.GetFileName(ofd.FileName);
-                    try
-                    {
-                        string[,] loaded = GetDataFromCSV(ofd.FileName);
-                        int loadedRows = loaded.GetLength(0);
-                        int loadedCols = loaded.GetLength(1);
+                            string fileName = Path.GetFileName(ofd.FileName);
+                            try
+                            {
+                                string[,] loaded = ReadCsv(ofd.FileName);
+                                int loadedRows = loaded.GetLength(0);
+                                int loadedCols = loaded.GetLength(1);
 
                                 grid.Rows.Clear();
                                 grid.Columns.Clear();
@@ -358,26 +296,26 @@ namespace SheetView
                                     string header = loaded[0, c] ?? "";
                                     col.Name = header;
                                     col.HeaderText = header;
-                                    if (LastColOnlyEdit)
-                                    {
-                                        SetColumnAccess(c, loadedCols - 1, col);
-                                    }
+                               
+                                
+                                  
+                                  
                                 }
+                                object[] loadRowValues = new object[loadedCols];
                                 for (int r = 1; r < loadedRows; r++)
                                 {
-                                    object[] rowValues = new object[loadedCols];
                                     for (int c = 0; c < loadedCols; c++)
                                     {
-                                        rowValues[c] = loaded[r, c];
+                                        loadRowValues[c] = loaded[r, c];
                                     }
 
-                                    _ = grid.Rows.Add(rowValues);
+                                    grid.Rows.Add((object[])loadRowValues.Clone());
                                     form.Text = appTitle + fileName;
                                 }
                             }
                             catch (Exception ex)
                             {
-                                _ = MessageBox.Show(form, $"Failed to load CSV:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                MessageBox.Show(form, $"Failed to load CSV:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             }
                         }
                     }
@@ -437,12 +375,12 @@ namespace SheetView
                     }
                     else if (e.KeyCode == Keys.Enter && !grid.IsCurrentCellInEditMode)
                     {
-                        btnExit.PerformClick();
+                        btnSearch.PerformClick();
                         e.Handled = true;
                     }
                 };
 
-                _ = form.ShowDialog();
+                form.ShowDialog();
             }
 
             return result;
@@ -461,14 +399,14 @@ namespace SheetView
         }
 
         /// <summary>
-        /// Writes the contents of a DataGridView to a CSV file
+        /// Writes the contents of a DataGridView to a CSV file using a SaveFileDialog.
         /// </summary>
-        /// <param name="title">The title for the SaveFileDialog (not used in file naming).</param>
+        
         /// <param name="rows">The number of rows to write.</param>
         /// <param name="cols">The number of columns to write.</param>
         /// <param name="form">The parent form for the dialog.</param>
         /// <param name="grid">The DataGridView containing the data.</param>
-        private static string SaveCsv(int rows, int cols, Form form, DataGridView grid)
+        private static string WriteCsv(int rows, int cols, Form form, DataGridView grid)
         {
             string fileName = "";
             try
@@ -484,24 +422,24 @@ namespace SheetView
                         using (StreamWriter writer = new StreamWriter(filePath, false, System.Text.Encoding.UTF8))
                         {
                             // Write all column headers
-                            List<string> headerFields = new List<string>(cols);
+                            string[] headerFields = new string[cols];
                             for (int c = 0; c < cols; c++)
                             {
                                 string header = grid.Columns[c].HeaderText ?? "";
                                 header = header.Replace("\"", "\"\"");
-                                headerFields.Add($"\"{header}\"");
+                                headerFields[c] = $"\"{header}\"";
                             }
                             writer.WriteLine(string.Join(",", headerFields));
 
                             // Write data
+                            string[] fields = new string[cols];
                             for (int r = 0; r < rows; r++)
                             {
-                                List<string> fields = new List<string>(cols);
                                 for (int c = 0; c < cols; c++)
                                 {
                                     string val = grid.Rows[r].Cells[c].Value?.ToString() ?? "";
                                     val = val.Replace("\"", "\"\"");
-                                    fields.Add($"\"{val}\"");
+                                    fields[c] = $"\"{val}\"";
                                 }
                                 writer.WriteLine(string.Join(",", fields));
                             }
@@ -511,19 +449,19 @@ namespace SheetView
             }
             catch (Exception ex)
             {
-                _ = MessageBox.Show(form, $"Failed to save CSV:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(form, $"Failed to save CSV:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             return fileName;
         }
 
         /// <summary>
-        /// Reads a CSV file into a 2D string array and returns it to the caller
+        /// Reads a CSV file into a 2D string array.
         /// Assumes comma as delimiter and no quoted fields.
         /// </summary>
         /// <param name="filePath">The path to the CSV file.</param>
         /// <returns>A 2D string array containing the CSV data.</returns>
         /// <exception cref="FileNotFoundException">Thrown if the file does not exist.</exception>
-        internal static string[,] GetDataFromCSV(string filePath)
+        internal static string[,] ReadCsv(string filePath)
         {
             if (!File.Exists(filePath))
             {
@@ -555,49 +493,6 @@ namespace SheetView
                 }
             }
             return result;
-        }
-
-        private static void FormatCols(string[,] elemData, int numCols, DataGridView grid)
-        {
-            // Format the columns as required
-            for (int c = 0; c < numCols; c++)
-            {
-                DataGridViewColumn dataCol = grid.Columns[c];
-                string header = elemData[0, c] ?? "";
-                dataCol.Name = header;
-                dataCol.HeaderText = header;
-
-                if (c == headingCol)
-                {
-                    //Set background colour to light grey for the heading column
-                    dataCol.DefaultCellStyle.BackColor = Color.FromArgb(240, 240, 240);
-                    dataCol.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells;
-                    dataCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
-                    if (LastColOnlyEditable)
-                    {
-                        dataCol.ReadOnly = true;
-                    }
-                }
-
-                if (c > headingCol && c < numCols - 1)
-                {
-                    dataCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                    if (LastColOnlyEditable)
-                    {
-                        dataCol.ReadOnly = true;
-                    }
-                }
-
-                if (c == numCols - 1)                  
-                {
-                    dataCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-                    if (LastColOnlyEditable)
-                    {
-                        dataCol.ReadOnly = false;
-                    }
-                }
-
-            }
         }
     }
 }
