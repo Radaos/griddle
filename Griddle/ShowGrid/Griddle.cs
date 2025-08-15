@@ -39,17 +39,6 @@ namespace SheetView
                 throw new ArgumentException("Data must have at least 2 rows (header + data) and 2 columns.", nameof(elemData));
             }
 
-            // Find the last column that contains data in row 1
-            int lastColWithData = numCols - 1;
-            for (int c = numCols - 1; c >= 0; c--)
-            {
-                if (elemData[1, c] != null && !string.IsNullOrWhiteSpace(elemData[1, c]))
-                {
-                    lastColWithData = c;
-                    break;
-                }
-            }
-
             string[,] result = new string[0, 0];
 
             using (Form form = new Form())
@@ -101,7 +90,7 @@ namespace SheetView
                 FormatCols(elemData, numCols, grid);
 
                 // Populate rows below header
-                for (int r = headingRow+1; r < rows; r++)
+                for (int r = headingRow + 1; r < rows; r++)
                 {
                     object[] rowValues = new object[numCols];
                     for (int c = 0; c < numCols; c++)
@@ -353,36 +342,36 @@ namespace SheetView
                         int loadedRows = loaded.GetLength(0);
                         int loadedCols = loaded.GetLength(1);
 
-                                grid.Rows.Clear();
-                                grid.Columns.Clear();
-                                grid.ColumnCount = loadedCols;
-                                for (int c = 0; c < loadedCols; c++)
-                                {
-                                    DataGridViewColumn col = grid.Columns[c];
-                                    string header = loaded[0, c] ?? "";
-                                    col.Name = header;
-                                    col.HeaderText = header;
-                                }
+                        grid.Rows.Clear();
+                        grid.Columns.Clear();
+                        grid.ColumnCount = loadedCols;
+                        for (int c = 0; c < loadedCols; c++)
+                        {
+                            DataGridViewColumn col = grid.Columns[c];
+                            string header = loaded[0, c] ?? "";
+                            col.Name = header;
+                            col.HeaderText = header;
+                        }
 
-                                for (int r = headingRow+1; r < loadedRows; r++)
-                                {
-                                    object[] rowValues = new object[loadedCols];
-                                    for (int c = 0; c < loadedCols; c++)
-                                    {
-                                        rowValues[c] = loaded[r, c];
-                                    }
-
-                                    _ = grid.Rows.Add(rowValues);
-                                    form.Text = appTitle + fileName;
-                                }
-                            }
-                            catch (Exception ex)
+                        for (int r = headingRow + 1; r < loadedRows; r++)
+                        {
+                            object[] rowValues = new object[loadedCols];
+                            for (int c = 0; c < loadedCols; c++)
                             {
-                                _ = MessageBox.Show(form, $"Failed to load CSV:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                rowValues[c] = loaded[r, c];
                             }
+
+                            _ = grid.Rows.Add(rowValues);
+                            form.Text = appTitle + fileName;
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        _ = MessageBox.Show(form, $"Failed to load CSV:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
+            }
+        }
 
         /// <summary>
         /// Writes the contents of a DataGridView to a CSV file
@@ -511,7 +500,7 @@ namespace SheetView
                     }
                 }
 
-                if (c == numCols - 1)                  
+                if (c == numCols - 1)
                 {
                     dataCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                     if (LastColOnlyEditable)
