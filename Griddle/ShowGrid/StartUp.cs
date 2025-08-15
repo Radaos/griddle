@@ -11,6 +11,7 @@ namespace SheetView
         private static void Main(string[] args)
         {
             string[,] initialData;
+            string[,] returnedData;
 
             if (args.Length == 0)
             {
@@ -27,13 +28,11 @@ namespace SheetView
             {
                 // A single argument is expected, which is the path to a CSV file.
                 string filePath = args[0];
-                _ = System.IO.Path.GetFileName(filePath);
-                // Initialize from a CSV file.
                 initialData = GetDataFromCSV(filePath);
             }
 
             // View/ edit the data in a grid format.
-            _ = ShowGrid(initialData, windowTitle);
+            returnedData = ShowGrid(initialData, windowTitle);
 
             // Returned data may be processed here.
 
