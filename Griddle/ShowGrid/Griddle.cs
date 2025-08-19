@@ -211,6 +211,15 @@ namespace SheetView
             return result;
         }
 
+        /// <summary>
+        /// Search for the specified string in the DataGridView.
+        /// </summary>
+        /// <param name="form"></param>
+        /// <param name="grid"></param>
+        /// <param name="txtSearch"></param>
+        /// <param name="lastFoundRow"></param>
+        /// <param name="lastFoundCol"></param>
+        /// <param name="lastSearchText"></param>
         private static void DataSearch(Form form, DataGridView grid, TextBox txtSearch, ref int lastFoundRow, ref int lastFoundCol, ref string lastSearchText)
         {
             // Capture the state, then update the ref parameters
@@ -469,6 +478,13 @@ namespace SheetView
             }
             return result;
         }
+
+        /// <summary>
+        /// Configure cell alignment, colour, auto-sizing, and read-only status for each column in the DataGridView.
+        /// </summary>
+        /// <param name="elemData"></param>
+        /// <param name="numCols"></param>
+        /// <param name="grid"></param>
         private static void FormatCols(string[,] elemData, int numCols, DataGridView grid)
         {
             // Format the columns as required
