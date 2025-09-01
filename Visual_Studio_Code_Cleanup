@@ -1,0 +1,74 @@
+Visual Studio Code Cleanup settings
+
+Do not enable all options in Code Cleanup, this will cause very slow operation and make aggressive edits, some of which are undesirable.
+Instead, use the following settings for C# program development.
+
+
+Settings for quick cleanup: Option 1 (set this to run on save)
+---------------------------------------------------------------
+Format document
+Sort imports or usings
+Apply file header preferences
+========================================================================================
+
+
+Settings for full cleanup: Option 2
+Fix:											Enable?
+---------------------------------------------------------------
+Format document									Yes: Consistency for merges, readability
+Sort imports or usings							Yes: Consistency for merges
+Apply file header preferences					Yes: Should have copyright file header. Need to define this.
+Add 'this' or 'Me' qualification				Yes: Clarity
+Add accessibility modifiers						Yes: Clarity
+Order modifiers									Yes: Consistency
+Make field readonly								Yes: Security. private fields marked readonly if assigned inline or in a constructor
+Remove unnecessary casts						Yes: Performance
+Apply object/collection init parameters)		Yes: Clarity
+Apply using directive placement preferences		Yes: Clarity, best practice
+Apply parentheses preferences					Yes: Remove unnecessary parentheses for clarity
+Apply language/framework type preferences		Yes: Use language keyword for consistency
+Remove unused suppressions						Yes: Applies only to stale code
+Apply string interpolation preferences			Yes: removes unnecessary ToString() calls
+Apply auto property preferences					Yes: More compact
+Apply compound assignment preferences			Yes: True: x += 5  
+Apply tuple name preferences					Yes: Clarity. No current code affected, applies to tuples.
+Apply null checking preferences					Yes: Makes inline ifs more readable.
+Apply 'var' preferences							Yes: Prefers var when the type is already on the right-hand side of an expression
+Add required braces for single-line statements	Yes: Clarity, removes risk if adding more stsrements to block
+Apply expression/block body preferences			Yes: code style rules
+Apply inline 'out' variables preferences		Yes: Uses int i where appropriate instead of needing a separate declaration
+Apply pattern matching preferences				Yes: code style rules
+Apply static local function preferences			Yes: Clarity
+Apply deconstruct preferences					Yes: Applies only to tuples
+Apply default(T) preferences					Yes: more compact
+Apply new() preferences							Yes: more compact
+Apply range preferences							Yes: more compact
+Apply local over anonymous function prefs		Yes: more readable
+Apply using statement preferences				Yes: more compact and readable
+Apply namespace preferences					    Yes: Applies best practice. Need to run program after to ensure all TestStand steps match.
+
+Fix:											Enable?
+========================================================================================
+Apply throw expression preferences				No: Inline if is not preferred. No room for comments.
+Remove unnecessary Imports or usings			No: Can enable this for production release.
+Remove unused variables							No: Set up .editorconfig instead to generate a warning.
+Apply object creation preferences				No: Irrelevant to C#
+Apply IsNot preferences							No: Irrelevant to C#
+Apply unused value preferences					No: This will apply _ = discard operator too aggressively.
+Apply simplify boolean expression preferences	No: Inline if (ternary conditional operator) is not preferred. No room for comments.
+Remove unused parameters						No: May want parameter later. Set .editorconfig to flag these however
+Apply coalesce expression preferences			No: Makes inline ifs less readable.
+Apply conditional expression preferences		No: This will turn if-else statements into inline ifs.
+Apply inferred anon type member names prefs		No: Clarity. No current code affected, applies to tuples.
+Apply null propagation preferences				No: Makes inline ifs less readable.
+Apply conditional delegate call preferences		No: Inline if is not preferred. No room for comments.
+Optimize file include graph (C++)				No: Irrelevant
+Sort #include directives (C++)					No: Irrelevant
+Fix all warnings and errors set in EditorConfig	No: This will apply _ = discard operator too aggressively.
+Apply statement after block preferences			No: Unknown option
+Apply blank lines between consecutive braces	No: unnecessary
+Apply blank line after colon in constructor		No: unnecesary
+Apply embedded statements on same line			No: Syntax not liked
+Apply readonly struct preferences				No: Unknown option
+Apply method group conversion prefs				No: unknown option
+Remove unnecessary nullable directive			No: Unknown
